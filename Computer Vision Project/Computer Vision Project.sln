@@ -1,20 +1,49 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Computer Vision Project", "Computer Vision Project\Computer Vision Project.vcxproj", "{533CEAE6-2251-4A17-9330-7C50809F5096}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Win32 = Debug|Win32
-		Release|Win32 = Release|Win32
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{533CEAE6-2251-4A17-9330-7C50809F5096}.Debug|Win32.ActiveCfg = Debug|Win32
-		{533CEAE6-2251-4A17-9330-7C50809F5096}.Debug|Win32.Build.0 = Debug|Win32
-		{533CEAE6-2251-4A17-9330-7C50809F5096}.Release|Win32.ActiveCfg = Release|Win32
-		{533CEAE6-2251-4A17-9330-7C50809F5096}.Release|Win32.Build.0 = Release|Win32
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-EndGlobal
+#include<iostream>
+#include<opencv2/core.hpp>
+#include<opencv2/imgcodecs.hpp>
+#include<opencv2/highgui.hpp>
+#include<opencv2/imgproc.hpp>
+#include<opencv2/features2d.hpp>
+using namespace cv;
+using namespace std;
+int main(int argc, char **argv) {
+	CommandLineParser parser(argc, argv, "{help h||}{ @image | ../data/baboon.jpg | }");
+	Mat src;
+	std::string filename = parser.get<std::string>("@image");
+	if ((src = imread(filename, IMREAD_COLOR)).empty())
+	{
+		cout << "Couldn't load image";
+		return -1;
+	}
+	Mat gray, thresh, smooth,morph ;
+	cvtColor(src, src, COLOR_BGRA2BGR);
+	cout << "Number of input channels=" << src.channels();
+	bilateralFilter(src, smooth, 9, 30, 30);
+	cvtColor(smooth, gray, COLOR_BGR2GRAY);
+	GaussianBlur(gray, gray, Size(5, 3),1.5);
+	adaptiveThreshold(gray, thresh, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY
+		, 11, 2);
+	threshold(gray, thresh, 50, 255, THRESH_BINARY+THRESH_OTSU);
+	Mat kernel = getStructuringElement(MORPH_RECT, Size(25, 9));
+	morphologyEx(thresh, morph, MORPH_OPEN, kernel);
+	//morphologyEx(thresh, thresh, MORPH_OPEN, kernel);
+	//
+	Ptr<MSER> ms = MSER::create();
+	vector<vector<Point> > regions;
+	vector<cv::Rect> mser_bbox;
+	ms->detectRegions(thresh, regions, mser_bbox);
+
+	for (int i = 0; i < regions.size(); i++)
+	{
+		
+		rectangle(src, mser_bbox[i], CV_RGB(0, 255, 0));
+	}
+	imshow("processed_image", morph);
+	imshow("original", src);
+	imshow("thresh", thresh);
+	moveWindow("original", 10, 50);
+	moveWindow("thresh", 30, 70);
+	waitKey(0);
+	return 0;
+	
+}
